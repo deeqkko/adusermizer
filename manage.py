@@ -6,9 +6,9 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    if os.environ['ENV_ROLE'] != 'development':
-        os.environ['ENV_ROLE'] = 'development'
-        
+    # if os.environ['ENV_ROLE'] != 'development':
+    #     os.environ['ENV_ROLE'] = 'development'
+
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'adusermizer.settings.base')
     try:
         from django.core.management import execute_from_command_line
