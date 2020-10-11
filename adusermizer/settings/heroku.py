@@ -1,5 +1,5 @@
 import environ
-from adusermizer.settings import *
+from adusermizer.settings.base import *
 
 env = environ.Env(
     DEBUG=(bool, False)
