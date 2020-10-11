@@ -6,6 +6,5 @@ db.sqlite3
 adusermizer/settings/local.py
 runDev.sh
 runProd.sh
-staticfiles
 .vscode
 modelfiles/
