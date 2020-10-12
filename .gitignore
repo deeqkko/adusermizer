@@ -1,6 +1,7 @@
 adusermizer/settings/.env
 adusermizer/*/__pycache__
 adusermizer/__pycache__
+backend/*/__pycache__
 backend/__pycache__
 db.sqlite3
 adusermizer/settings/local.py
