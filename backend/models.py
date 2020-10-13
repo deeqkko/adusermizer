@@ -9,6 +9,7 @@ class Domain(models.Model):
         editable=False
     )
     domainName = models.CharField("Fully qualified domain name", max_length=50)
+    computerName = models.CharField("Computer name", max_length=50, default="")
     ipaddress = models.GenericIPAddressField("IPv4 address", unique=True, default="")
 
     def __str__(self):

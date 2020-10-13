@@ -24,4 +24,4 @@ class GroupSerializer(serializers.HyperlinkedModelSerializer):
 class DomainSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Domain
-        fields = ['url', 'domainName', 'ipaddress']
+        fields = ['url', 'domainName', 'computerName', 'ipaddress']
