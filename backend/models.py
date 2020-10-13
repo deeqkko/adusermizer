@@ -8,7 +8,7 @@ class Domain(models.Model):
         default=uuid.uuid4,
         editable=False
     )
-    domainName = models.CharField("Fully qualified domain name", max_length=50)
+    domainName = models.CharField("Fully qualified domain name", max_length=50, unique=True)
     computerName = models.CharField("Computer name", max_length=50, default="")
     ipaddress = models.GenericIPAddressField("IPv4 address", unique=True, default="")
 
@@ -33,7 +33,7 @@ class User(models.Model):
         default=uuid.uuid4,
         editable=False
     )
-    objectSid = models.CharField("Security identifier", max_length=50)
+    objectSid = models.CharField("Security identifier", max_length=50, unique=True)
     userPrincipalName = models.CharField("User logon name", max_length=50)
     givenName = models.CharField("First name", max_length=30, default="")
     sn = models.CharField("Last name", max_length=50, default="")
