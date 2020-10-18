@@ -1,0 +1,35 @@
+Sisällysluettelo/Tietopohja
+
+1. Johdanto
+    -Lyhyt AD-esittely (Forest, domain, komponentit)
+    -Käyttäjät Active Directoryssa
+    -Käyttäjänhallinta domainissa (ADUC)
+    
+2. Erillisten toimialueiden ongelma
+    -Miksi käyttää erillisiä toimialueita?
+    -Luottamussuhteen puuttuminen
+    -Epäkoherentit tietokannat käyttäjien osalta
+    -Salasanan nollauksen hankaluus
+    
+3. Kolmannen osapuolen hallintatyökalu
+    -Web-ohjelmiston normaali arkkitehtuuri
+    -REST-API
+    -Ohjelman arkkitehtuuri
+    -Ohjelman toiminnot
+    -Frontend/Backend/tietokanta
+    -Domain-rajapinta (Powershell skriptit)
+    
+4. Ratkaisun vahvuudet ja heikkoudet
+    -Ylläpidon helpottaminen
+    -Yksi käyttäjä, useita käyttäjätilejä
+    -Epäsynkronisuus eri toimialueilla yhteyskatkoksista johtuen
+    
+    
+KYSYMYKSET:
+
+1. SQL-tietokannan muna-kana -ongelma. Käyttäjien ja toimialueiden välillä vallitsee ManyToMany-suhde.
+2. DC-rajapinta. Kumpi vaihtoehto on parempi:
+    a) Toimialueobjekteja muokatessa backend ottaa yhteyden dc-palvelimeen ja ajaa powershell-skriptin verkkoyhteyden yli.
+    
+    b) DC-palvelimella on agentti, jota backend kutsuu tarvittaessa. Agentti rakentaa ja toteuttaa tarpeelliset skriptit (python/powershell-muunnos) backendin ohjauksen mukaan.
+    
