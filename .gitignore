@@ -9,3 +9,4 @@ runDev.sh
 runProd.sh
 .vscode
 modelfiles/
+staticfiles/
