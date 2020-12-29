@@ -1,7 +1,7 @@
 $user = $args[0]
 
 try {
-    $users = Get-ADUser -Identity $user | `
+    $users = Get-ADUser -Filter * | `
     Select-Object `
      @{N='id';E={$_.ObjectGUID.Guid}}, `
      @{N='user_principal_name';E={$_.UserPrincipalName}}, `

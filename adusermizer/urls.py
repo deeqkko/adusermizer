@@ -16,7 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
-from backend import views
+from django.views.generic import RedirectView
 
 router = routers.DefaultRouter()
 
@@ -25,5 +25,6 @@ router = routers.DefaultRouter()
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('backend.urls')),
-    path('api/', include(router.urls))
+    path('api/', include(router.urls)),
+    path('', RedirectView.as_view(url="/api/"))
 ]
