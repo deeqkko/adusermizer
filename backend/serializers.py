@@ -24,6 +24,7 @@ class DomainUserSerializer(serializers.ModelSerializer):
         model = DomainUser
         fields = '__all__'
 
+
 class OrganizationalUnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrganizationalUnit

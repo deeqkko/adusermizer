@@ -1,11 +1,13 @@
 $user = $args[0] | ConvertFrom-Json 
 $newUser = New-Object -TypeName PSObject
+$domain = Get-ADDomain | Select-Object -ExpandProperty "Forest"
+$upn = $user.sam_account_name + "@" + $domain
 
 try { 
    $pw = ConvertTo-SecureString $user.account_password -AsPlainText -Force;
    New-ADUser -Name $user.sam_account_name `
     -SamAccountName $user.sam_account_name `
-    -UserPrincipalName $user.user_principal_name `
+    -UserPrincipalName $upn `
     -GivenName $user.given_name `
     -Surname $user.surname `
     -AccountPassword $pw `

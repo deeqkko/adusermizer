@@ -15,7 +15,7 @@ class Domain(models.Model):
     host_name = models.CharField("HostName", max_length=50)
     ipv4address = models.GenericIPAddressField("IPv4Address", unique=True)
     acc_admin = models.CharField("Account Administrator", max_length=50)
-    password = models.CharField("Admin Password", max_length=100)
+    key_name = models.CharField("Admin Password", max_length=100)
 
     def __str__(self):
         return self.domain
@@ -23,6 +23,7 @@ class Domain(models.Model):
 class DomainGroup(models.Model):
     """Domain security groups"""
     id = models.CharField("ObjectGuid", max_length=50, primary_key=True)
+    group_id = models.ForeignKey('Group', on_delete=models.CASCADE, null=True)
     domain = models.ForeignKey('Domain', on_delete=models.CASCADE)
     name = models.CharField("Name", max_length=50)
     sam_account_name = models.CharField("SamAccountName",max_length=50)
@@ -49,15 +50,22 @@ class Group(models.Model):
     group_scope = models.IntegerField("GroupScope")
     display_name = models.CharField("DisplayName", max_length=50, blank=True)
     description = models.CharField("Description", max_length=50, blank=True)
-    domain_groups = models.ManyToManyField(DomainGroup, blank=True)
+    organizational_unit = models.ForeignKey('OrganizationalUnit', on_delete=models.CASCADE, blank=True, null=True)
+
+    def __str__(self):
+        return self.name
 
 class DomainOrganizationalUnit(models.Model):
     """Domain Organizational Unit"""
     id = models.CharField("ObjectGuid", max_length=50, primary_key=True)
+    ou_id = models.ForeignKey("OrganizationalUnit", on_delete=models.CASCADE, null=True)
     domain = models.ForeignKey('Domain', on_delete=models.CASCADE)
     name = models.CharField("Name", max_length=50)
     distinguished_name = models.CharField("Distinguished Name", max_length=100)
     created_by_app = models.BooleanField("Created by app", default=False)
+
+    def __str__(self):
+        return self.distinguished_name
 
 class OrganizationalUnit(models.Model):
     id = models.UUIDField(
@@ -67,8 +75,6 @@ class OrganizationalUnit(models.Model):
         default=uuid.uuid4
     )
     name = models.CharField("Name", max_length=50)
-    distinguished_name = models.CharField("Distinguished Name", max_length=50)
-    domain_ous = models.ManyToManyField(DomainOrganizationalUnit)
 
 class DomainUser(models.Model):
     """Model for domain user entities per single app user"""
@@ -97,8 +103,9 @@ class User(models.Model):
     given_name = models.CharField("GivenName", max_length=50)
     surname = models.CharField("Surname", max_length=50)
     account_password = models.CharField("Account Password", max_length=50)
-    groups = models.ManyToManyField(Group)
-    domains = models.ManyToManyField(Domain)
+    organizational_unit = models.ForeignKey('OrganizationalUnit', null=True, on_delete=models.CASCADE)
+    groups = models.ManyToManyField(Group, blank=True)
+    domains = models.ManyToManyField(Domain, blank=True)
 
     def __str__(self):
         return self.sam_account_name

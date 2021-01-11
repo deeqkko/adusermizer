@@ -3,17 +3,22 @@ Backend app api views
 """
 from rest_framework import viewsets
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from backend.models import Domain, User, DomainUser, DomainGroup, DomainOrganizationalUnit,\
      Group, OrganizationalUnit
 from backend.serializers import DomainSerializer, UserSerializer, DomainUserSerializer,\
      DomainGroupSerializer, DomainOrganizationalUnitSerializer, OrganizationalUnitSerializer,\
      GroupSerializer
 from .services import connect, connect_domain, remove_domain, get_user, get_users, \
-     get_groups, create_group, delete_group, create_user, delete_user, \
-     get_organizational_units, create_organizational_unit, delete_organizational_unit
+     get_groups, create_group, move_group, delete_group, create_user, delete_user, \
+     get_organizational_units, create_organizational_unit, delete_organizational_unit, \
+     add_group_member, remove_group_member, move_object_to_ou
 
-keys = {'sam_account_name', 'user_principal_name',
-        'given_name', 'surname', 'account_password'}
+########################################################################################
+#                                                                                      #
+#                                     Domain Viewset                                   #
+#                                                                                      #
+########################################################################################
 
 
 class DomainViewSet(viewsets.ModelViewSet):
@@ -22,8 +27,7 @@ class DomainViewSet(viewsets.ModelViewSet):
 
     def create(self, request):
         req = request.data
-        conn = connect(req.get('ipv4address'), req.get(
-            'acc_admin'), req.get('password'))
+        conn = connect(req['ipv4address'], req['acc_admin'], req['key_name'])
         server_props = connect_domain(conn)
         data = {
             'id': server_props.get("ServerObjectGuid"),
@@ -63,7 +67,7 @@ class DomainViewSet(viewsets.ModelViewSet):
         domain_users = DomainUser.objects.filter(domain__id=domain.id)
         domain_groups = DomainGroup.objects.filter(domain__id=domain.id)
         domain_ous = DomainOrganizationalUnit.objects.filter(domain__id=domain.id)
-        conn = connect(domain.ipv4address, domain.acc_admin, domain.password)
+        conn = connect(domain.ipv4address, domain.acc_admin, domain.key_name)
 
         for domain_user in domain_users:
             if domain_user.created_by_app:
@@ -84,142 +88,213 @@ class DomainViewSet(viewsets.ModelViewSet):
         domain.delete()
         return Response({'status':'Domain removed'})
 
+########################################################################################
+#                                                                                      #
+#                                     User Viewset                                     #
+#                                                                                      #
+########################################################################################
+
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
     def create(self, request):
-        req = self.request.data
-        domains = Domain.objects.filter(id__in=req.get('domains'))
+        new_user = self.request.data
+        new_user_serializer = UserSerializer(data=new_user)
+        if new_user_serializer.is_valid():
+            new_user_serializer.save()
+            domains = Domain.objects.filter(id__in=new_user['domains'])
+            for domain in domains:
+                conn = connect(domain.ipv4address,domain.acc_admin,domain.key_name)
+                result = create_user(conn, new_user)
+                result.update({
+                    'user_id': User.objects.get(sam_account_name=new_user['sam_account_name']).id,
+                    'domain': domain.id,
+                    'created_by_app':True
+                    })
+                new_domain_user_serializer = DomainUserSerializer(data=result)
+                if new_domain_user_serializer.is_valid():
+                    new_domain_user_serializer.save()
+                print(new_domain_user_serializer.errors)
 
-        userserializer = UserSerializer(data=req)
-        if userserializer.is_valid():
-            userserializer.save()
+        print(new_user_serializer.errors)
 
-        req.pop('domains')
-        user = User.objects.get(sam_account_name=req['sam_account_name'])
-        for domain_controller in domains:
-            conn = connect(domain_controller.ipv4address,
-                           domain_controller.acc_admin,
-                           domain_controller.password)
-            domain_user = get_user(conn, req.get('sam_account_name'))
-            user_principal_name = user.sam_account_name + "@" + domain_controller.domain
-            req.update({'user_principal_name': user_principal_name})
-            req.update({'created_by_app': True})
-            
+        return Response(new_user_serializer.data)
 
-            if 'sam_account_name' not in domain_user.keys():
-                domain_user = create_user(conn, req)
-            # Laita ehtolause kuntoon tapauksessa, että käyttäjä on jo luotu domainiin
-            domain_user.update(
-                {'user_id': user.id, 'domain': domain_controller.id})
-            print(domain_user)
-            domain_controllerserializer = DomainUserSerializer(
-                data=domain_user)
-            if domain_controllerserializer.is_valid():
-                domain_controllerserializer.save()
-
-        return Response({'status': 'user created'})
-
-    def partial_update(self, request, pk=None):
-        keys = {'sam_account_name', 'user_principal_name',
-        'given_name', 'surname', 'account_password'}
-        req = self.request.data
-        all_domains = Domain.objects.all()
-        new_domains = Domain.objects.filter(id__in=req['domains'])
-        delete_domains = Domain.objects.exclude(id__in=req['domains'])
+    @action(detail=True, methods=['post'])
+    def add_to_group(self, request, pk=None):
         user = self.get_object()
-        print('delete domains', delete_domains)
+        domain_users = DomainUser.objects.filter(user_id=user.id)
+        new_groups = Group.objects.filter(id__in=request.data['groups'])
+        domain_groups = DomainGroup.objects.filter(group_id__in=new_groups.values_list('id', flat=True))
+        domains = Domain.objects.filter(id__in=domain_groups.values_list('domain', flat=True))
+        response = []
+        user_and_group = {}
 
-        for domain_controller in all_domains:
-            conn = connect(domain_controller.ipv4address,
-                           domain_controller.acc_admin, domain_controller.password)
-            domain_user = get_user(conn, user.sam_account_name)
+        for domain in domains:
+            conn = connect(domain.ipv4address, domain.acc_admin, domain.key_name)
+            for domain_group in domain_groups.filter(domain__id=domain.id):
+                user_and_group = {}
+                user_and_group.update({
+                    'group':domain_group.id,
+                    'user':domain_users.get(domain__id=domain.id).id
+                })
+                response.append(add_group_member(conn, user_and_group))
 
-            if domain_controller in new_domains and 'SamAccountName' not in domain_user.keys():
+        user_serializer = UserSerializer(user, data=request.data, partial=True)
+        if user_serializer.is_valid():
+            user_serializer.save()
+        print(user_serializer.errors)
 
-                domain_controller_user_attr = {
-                    key: value for key, value in user.__dict__.items() if key in keys}
-                user_principal_name = user.sam_account_name + "@" + domain_controller.domain
-                domain_controller_user_attr.update(
-                    {'user_principal_name': user_principal_name})
-                create_user(conn, domain_controller_user_attr)
+        return Response(user_serializer.data)
 
-                domain_user = get_user(conn, user.sam_account_name)
-                domain_user = {'id': domain_user['id'],
-                               'user_id': user.id,
-                               'distinguished_name': domain_user['distinguished_name'],
-                               'user_principal_name': user_principal_name,
-                               'domain': domain_controller.id,
-                               'sam_account_name': domain_user['sam_account_name']}
-                domain_controllerserializer = DomainUserSerializer(
-                    data=domain_user)
-                if domain_controllerserializer.is_valid():
-                    domain_controllerserializer.save()
+    @action(detail=True, methods=['delete'])
+    def remove_from_group(self, request, pk=None):
+        user = self.get_object()
+        domain_users = DomainUser.objects.filter(user_id=user.id)
+        new_groups = Group.objects.filter(id__in=request.data['groups'])
+        domain_groups = DomainGroup.objects.filter(id__in=new_groups.values_list('domain_groups', flat=True))
+        domains = Domain.objects.filter(id__in=domain_groups.values_list('domain', flat=True))
+        response = []
+        user_and_group = {}
 
-            if domain_controller in delete_domains and 'sam_account_name' in domain_user.keys():
-                delete_user(conn, user.sam_account_name)
-                delete_domain = DomainUser.objects.filter(sam_account_name=user.sam_account_name).get(
-                    domain__id=domain_controller.id)
-                print(delete_domain)
-                delete_domain.delete()
+        for domain in domains:
+            conn = connect(domain.ipv4address, domain.acc_admin, domain.key_name)
+            for domain_group in domain_groups.filter(domain__id=domain.id):
+                user_and_group = {}
+                user_and_group.update({
+                    'group':domain_group.id,
+                    'user':domain_users.get(domain__id=domain.id).id
+                })
+                response.append(remove_group_member(conn, user_and_group))
+        
+        groups_to_delete = request.data['groups']
+        for group_to_delete in groups_to_delete:
+            user.groups.remove(group_to_delete)
 
-        userserializer = UserSerializer(user, data=req, partial=True)
-        if userserializer.is_valid():
-            userserializer.update(user, userserializer.validated_data)
 
-        return Response({'status': req['domains']})
+        return Response(request.data)
+
+    @action(detail=True, methods=['post'])
+    def add_to_ou(self, request, pk=None):
+        user = self.get_object()
+        domain_users = DomainUser.objects.filter(user_id=user.id)
+        organizational_unit = OrganizationalUnit.objects.filter(id__contains=request.data['organizational_unit'])
+        domain_ous = DomainOrganizationalUnit.objects.filter(ou_id__in=organizational_unit.values_list('id', flat=True))
+        domains = Domain.objects.filter(id__in=domain_users.values_list('domain', flat=True))
+
+        for domain in domains:
+            conn = connect(domain.ipv4address, domain.acc_admin,domain.key_name)
+            for domain_ou in domain_ous.filter(domain__id=domain.id):
+                domain_user = domain_users.get(domain=domain.id)
+                properties = {
+                    'identity': domain_user.id,
+                    'targetpath': domain_ou.distinguished_name
+                }
+                result = move_object_to_ou(conn, properties)
+                print(result)
+                domain_user_serializer = DomainUserSerializer(domain_user, data=result, partial=True)
+                if domain_user_serializer.is_valid():
+                    domain_user_serializer.save()
+                print(domain_user_serializer.errors)
+        
+        user_serializer = UserSerializer(user, data=request.data, partial=True)
+        if user_serializer.is_valid():
+            user_serializer.save()
+        print(user_serializer.errors)
+
+        return Response(user_serializer.data)
+
+    @action(detail=True, methods=['get', 'post'])
+    def reset_key_name(self, request, pk=None):
+        self.get_object()
+        return Response('Coming soon...')
+
 
     def destroy(self, request, pk=None):
-        """
-        Laita varmistuksia!
-        """
         user = self.get_object()
-        for domain_controller in Domain.objects.filter(user__sam_account_name=user.sam_account_name):
-            conn = connect(domain_controller.ipv4address,
-                           domain_controller.acc_admin, domain_controller.password)
-            delete_user(conn, user.sam_account_name)
+        domain_users = DomainUser.objects.filter(user_id__id=user.id)
+        response = []
+        
+        for domain in user.domains.all():
+            conn = connect(domain.ipv4address,domain.acc_admin,domain.key_name)
+            domain_user = domain_users.get(domain__id=domain.id)
+            domain_user_dict = DomainUserSerializer(domain_user).data
+            domain_user_dict.pop('user_id', None)
+            response.append(delete_user(conn, domain_user_dict))
 
         user.delete()
 
-        return Response({'status': 'User deleted'})
+        return Response(response)
+
+########################################################################################
+#                                                                                      #
+#                                     Group Viewset                                    #
+#                                                                                      #
+########################################################################################
 
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
 
     def create(self, request):
-        req = request.data
-        update_domain_group = []
-        
-        for domain in Domain.objects.all():
-            conn = connect(domain.ipv4address,domain.acc_admin,domain.password)
-            domain_groups = DomainGroup.objects.filter(domain__domain=domain.domain).filter(name=req['name'])
-            if not domain_groups:
-                req.update({'distinguished_name':domain.distinguished_name})
-                new_domain_group = create_group(conn, req)
-                new_domain_group.update({
-                    'domain':domain.id,
+        new_group = request.data
+        new_group_serializer = GroupSerializer(data=new_group)
+        if new_group_serializer.is_valid():
+            new_group_serializer.save()
+            domains = Domain.objects.all()
+            for domain in domains:
+                conn = connect(domain.ipv4address, domain.acc_admin, domain.key_name)
+                new_group.update({'distinguished_name':domain.distinguished_name})
+                result = create_group(conn, new_group)
+                result.update({
+                    'group_id': Group.objects.get(sam_account_name=new_group['sam_account_name']).id,
+                    'domain': domain.id,
                     'created_by_app': True
-                    })
-                print(new_domain_group)
-                domain_group_serializer = DomainGroupSerializer(data=new_domain_group)
+                })
+                print(result)
+                domain_group_serializer = DomainGroupSerializer(data=result)
                 if domain_group_serializer.is_valid():
                     domain_group_serializer.save()
-                    update_domain_group.append(new_domain_group['id'])
                 print(domain_group_serializer.errors)
+            
+        return Response(new_group_serializer.data)
 
-        req.update({
-            'domain_groups':update_domain_group,
-            'created_by_app': True
-            })
-        group_serializer = GroupSerializer(data=req)
+ 
+
+    @action(detail=True, methods=['post'])
+    def add_to_ou(self, request, pk=None):
+        new_ou = request.data
+        group = self.get_object()
+        domain_groups = DomainGroup.objects.filter(group_id=group.id)
+        organizational_unit = OrganizationalUnit.objects.get(id=new_ou['organizational_unit'])
+        domain_ous = DomainOrganizationalUnit.objects.filter(ou_id=organizational_unit.id)
+        domains = Domain.objects.all()
+        print(organizational_unit, domain_ous, domains)
+
+        for domain in domains:
+            conn = connect(domain.ipv4address, domain.acc_admin,domain.key_name)
+            for domain_ou in domain_ous.filter(domain__id=domain.id):
+                domain_group = domain_groups.get(domain=domain.id)
+                properties = {
+                    'identity': domain_group.id,
+                    'targetpath': domain_ou.distinguished_name
+                }
+                result = move_object_to_ou(conn, properties)
+                print(result)
+                domain_group_serializer = DomainGroupSerializer(domain_group, data=result, partial=True)
+                if domain_group_serializer.is_valid():
+                    domain_group_serializer.save()
+                print(domain_group_serializer.errors)
+        
+        group_serializer = GroupSerializer(group, data=request.data, partial=True)
         if group_serializer.is_valid():
             group_serializer.save()
         print(group_serializer.errors)
 
-        return Response({'status':'group created'})
+        return Response(group_serializer.data)
+
 
     def destroy(self, request, pk=None):
         group = self.get_object()
@@ -228,17 +303,69 @@ class GroupViewSet(viewsets.ModelViewSet):
 
         for domain in domains:
             domain_group = DomainGroup.objects.filter(domain__id=domain.id).get(name=group.name)
-            conn = connect(domain.ipv4address, domain.acc_admin, domain.password)
+            conn = connect(domain.ipv4address, domain.acc_admin, domain.key_name)
             result.append(delete_group(conn, domain_group.distinguished_name))
             domain_group.delete()
 
         group.delete()
 
         return Response({'status': result})
+
+########################################################################################
+#                                                                                      #
+#                                Organizational Unit Viewset                           #
+#                                                                                      #
+########################################################################################
         
 class OrganizationalUnitViewSet(viewsets.ModelViewSet):
     queryset = OrganizationalUnit.objects.all()
     serializer_class = OrganizationalUnitSerializer
+
+    def create(self, request):
+        req = request.data
+
+        ou_serializer = OrganizationalUnitSerializer(data=req)
+        if ou_serializer.is_valid():
+            ou_serializer.save()
+            for domain in Domain.objects.all():
+                conn = connect(domain.ipv4address, domain.acc_admin, domain.key_name)
+                req.update({'path':domain.distinguished_name})
+                new_domain_ou = create_organizational_unit(conn, req)
+                new_domain_ou.update({
+                    'ou_id': OrganizationalUnit.objects.get(name=req['name']).id,
+                    'domain':domain.id,
+                    'created_by_app': True
+                })
+                print(new_domain_ou)
+                domain_ou_serializer = DomainOrganizationalUnitSerializer(data=new_domain_ou)
+                if domain_ou_serializer.is_valid():
+                    domain_ou_serializer.save()
+                print(domain_ou_serializer.errors) 
+    
+        return Response(ou_serializer.data)
+
+
+
+    def destroy(self, request, pk=None):
+        ou = self.get_object()
+        domains = Domain.objects.all()
+        result = []
+
+        for domain in domains:
+            conn = connect(domain.ipv4address, domain.acc_admin, domain.key_name)
+            domain_ou = DomainOrganizationalUnit.objects.filter(ou_id=ou.id).get(domain=domain.id)
+            sub_ous = DomainOrganizationalUnit.objects.filter(distinguished_name__contains=domain_ou.distinguished_name).exclude(name=domain_ou.name)
+            sub_groups = DomainGroup.objects.filter(distinguished_name__contains=domain_ou.distinguished_name)
+            sub_users = DomainUser.objects.filter(distinguished_name__contains=domain_ou.distinguished_name)
+            if sub_ous or sub_groups or sub_users:
+                return Response("Cannot delete. Leaf objects detected.")
+
+            result.append(delete_organizational_unit(conn, domain_ou.distinguished_name))
+            domain_ou.delete()
+        
+        ou.delete()
+
+        return Response({'status':result})
 
 class DomainUserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DomainUser.objects.all()
