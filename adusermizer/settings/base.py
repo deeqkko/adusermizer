@@ -34,6 +34,8 @@ DEBUG = env('DEBUG')
 # ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 ALLOWD_HOSTS = env('ALLOWED_HOSTS')
 
+APPEND_SLASH = False
+
 
 # Application definition
 
@@ -85,23 +87,9 @@ WSGI_APPLICATION = 'adusermizer.wsgi.application'
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
 DATABASES = {
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.postgresql_psycopg2',
-    #     'HOST': env('DB_HOST'),
-    #     'NAME': env('DB_NAME'),
-    #     'USER': env('DB_USER'),
-    #     'PASSWORD': env('DB_PASSWORD'),
-    #     'PORT': env('DB_PORT')
-    # }
+
     'default': env.db()
 }
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': 'db.sqlite3'
-#     }
-# }
 
 
 # Password validation
@@ -145,3 +133,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = '/staticfiles/'
 
 STATICFILE_STORAGE = 'whitenoise.storage.CompressedManfestStaticFilesStorage'
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated'),
+    'DEFAULT_AUTHETICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication')
+}

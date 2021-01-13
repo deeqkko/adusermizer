@@ -13,7 +13,7 @@ router.register(r'domaingroups', views.DomainGroupViewSet)
 router.register(r'domainou', views.DomainOrganizationalUnitViewSet)
 
 urlpatterns = [
-    path('api/', include(router.urls))
+    path('api', include(router.urls))
 ]
 
 

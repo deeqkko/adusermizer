@@ -4,6 +4,8 @@ Backend app api views
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from backend.models import Domain, User, DomainUser, DomainGroup, DomainOrganizationalUnit,\
      Group, OrganizationalUnit
 from backend.serializers import DomainSerializer, UserSerializer, DomainUserSerializer,\
@@ -24,6 +26,8 @@ from .services import connect, connect_domain, remove_domain, get_user, get_user
 class DomainViewSet(viewsets.ModelViewSet):
     queryset = Domain.objects.all()
     serializer_class = DomainSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def create(self, request):
         req = request.data
@@ -98,6 +102,8 @@ class DomainViewSet(viewsets.ModelViewSet):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def create(self, request):
         new_user = self.request.data
@@ -237,6 +243,8 @@ class UserViewSet(viewsets.ModelViewSet):
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def create(self, request):
         new_group = request.data
@@ -320,6 +328,8 @@ class GroupViewSet(viewsets.ModelViewSet):
 class OrganizationalUnitViewSet(viewsets.ModelViewSet):
     queryset = OrganizationalUnit.objects.all()
     serializer_class = OrganizationalUnitSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def create(self, request):
         req = request.data
@@ -370,11 +380,17 @@ class OrganizationalUnitViewSet(viewsets.ModelViewSet):
 class DomainUserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DomainUser.objects.all()
     serializer_class = DomainUserSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
 class DomainGroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DomainGroup.objects.all()
     serializer_class = DomainGroupSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
 class DomainOrganizationalUnitViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DomainOrganizationalUnit.objects.all()
     serializer_class = DomainOrganizationalUnitSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
