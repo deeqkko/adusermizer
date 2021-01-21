@@ -6,11 +6,13 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 from backend.models import Domain, User, DomainUser, DomainGroup, DomainOrganizationalUnit,\
      Group, OrganizationalUnit
 from backend.serializers import DomainSerializer, UserSerializer, DomainUserSerializer,\
      DomainGroupSerializer, DomainOrganizationalUnitSerializer, OrganizationalUnitSerializer,\
-     GroupSerializer
+     GroupSerializer, MyTokenObtainPairSerializer
 from .services import connect, connect_domain, remove_domain, get_user, get_users, \
      get_groups, create_group, move_group, delete_group, create_user, delete_user, \
      get_organizational_units, create_organizational_unit, delete_organizational_unit, \
@@ -106,11 +108,14 @@ class UserViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
 
     def create(self, request):
-        new_user = self.request.data
+        domains = Domain.objects.all()
+        new_user = self.request.data 
+        new_user.update({'domains':list(domains.values_list("id", flat=True))})
         new_user_serializer = UserSerializer(data=new_user)
         if new_user_serializer.is_valid():
             new_user_serializer.save()
-            domains = Domain.objects.filter(id__in=new_user['domains'])
+            #domains = Domain.objects.filter(id__in=new_user['domains'])
+            domains = Domain.objects.all()
             for domain in domains:
                 conn = connect(domain.ipv4address,domain.acc_admin,domain.key_name)
                 result = create_user(conn, new_user)
@@ -223,12 +228,13 @@ class UserViewSet(viewsets.ModelViewSet):
         domain_users = DomainUser.objects.filter(user_id__id=user.id)
         response = []
         
-        for domain in user.domains.all():
+        for domain in user.domains.all(): 
             conn = connect(domain.ipv4address,domain.acc_admin,domain.key_name)
             domain_user = domain_users.get(domain__id=domain.id)
             domain_user_dict = DomainUserSerializer(domain_user).data
             domain_user_dict.pop('user_id', None)
-            response.append(delete_user(conn, domain_user_dict))
+            print(domain_user_dict)
+            response.append(delete_user(conn, domain_user_dict)) #requestissa jotain vikaa?
 
         user.delete()
 
@@ -394,3 +400,6 @@ class DomainOrganizationalUnitViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = DomainOrganizationalUnitSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer

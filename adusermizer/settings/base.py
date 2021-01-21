@@ -34,7 +34,6 @@ DEBUG = env('DEBUG')
 # ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 ALLOWD_HOSTS = env('ALLOWED_HOSTS')
 
-APPEND_SLASH = False
 
 
 # Application definition
@@ -46,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'backend'
 ]
@@ -54,6 +54,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -138,3 +139,5 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated'),
     'DEFAULT_AUTHETICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication')
 }
+
+CORS_ORIGIN_ALLOW_ALL = True

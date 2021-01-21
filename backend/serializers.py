@@ -1,6 +1,8 @@
+from django.contrib.auth.models import User as DjangoUser
 from backend.models import Domain, DomainUser, DomainGroup, DomainOrganizationalUnit,\
      User, Group, OrganizationalUnit
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
 class DomainSerializer(serializers.ModelSerializer):
@@ -36,7 +38,17 @@ class GroupSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class UserSerializer(serializers.ModelSerializer):
+    domains = DomainSerializer(many=True)
+    groups = GroupSerializer(many=True)
+    organizational_unit = OrganizationalUnitSerializer
     class Meta:
         model = User
         fields = '__all__'
 
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['name'] = user.username
+
+        return token
