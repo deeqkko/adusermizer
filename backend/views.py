@@ -4,15 +4,15 @@ Backend app api views
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from rest_framework.permissions import DjangoModelPermissions, AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from backend.models import Domain, User, DomainUser, DomainGroup, DomainOrganizationalUnit,\
      Group, OrganizationalUnit
-from backend.serializers import DomainSerializer, UserSerializer, DomainUserSerializer,\
+from backend.serializers import DomainSerializer, UserSerializer, UserWriteSerializer, DomainUserSerializer,\
      DomainGroupSerializer, DomainOrganizationalUnitSerializer, OrganizationalUnitSerializer,\
-     GroupSerializer, MyTokenObtainPairSerializer
+     GroupSerializer, GroupWriteSerializer, MyTokenObtainPairSerializer
 from .services import connect, connect_domain, remove_domain, get_user, get_users, \
      get_groups, create_group, move_group, delete_group, create_user, delete_user, \
      get_organizational_units, create_organizational_unit, delete_organizational_unit, \
@@ -28,7 +28,7 @@ from .services import connect, connect_domain, remove_domain, get_user, get_user
 class DomainViewSet(viewsets.ModelViewSet):
     queryset = Domain.objects.all()
     serializer_class = DomainSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissions]
     authentication_classes = [JWTAuthentication]
 
     def create(self, request):
@@ -82,7 +82,7 @@ class DomainViewSet(viewsets.ModelViewSet):
 
         for domain_group in domain_groups:
             if domain_group.created_by_app:
-                deleted_group = deleted_group(conn, domain_group.id)
+                delete_group(conn, domain_group.id)
             domain_group.delete()
         
         for domain_ou in domain_ous:
@@ -104,14 +104,14 @@ class DomainViewSet(viewsets.ModelViewSet):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissions]
     authentication_classes = [JWTAuthentication]
 
     def create(self, request):
         domains = Domain.objects.all()
-        new_user = self.request.data 
+        new_user = self.request.data
         new_user.update({'domains':list(domains.values_list("id", flat=True))})
-        new_user_serializer = UserSerializer(data=new_user)
+        new_user_serializer = UserWriteSerializer(data=new_user)
         if new_user_serializer.is_valid():
             new_user_serializer.save()
             #domains = Domain.objects.filter(id__in=new_user['domains'])
@@ -124,12 +124,14 @@ class UserViewSet(viewsets.ModelViewSet):
                     'domain': domain.id,
                     'created_by_app':True
                     })
+                if new_user['organizational_unit']:
+                    print(new_user['organizational_unit'])
                 new_domain_user_serializer = DomainUserSerializer(data=result)
                 if new_domain_user_serializer.is_valid():
                     new_domain_user_serializer.save()
-                print(new_domain_user_serializer.errors)
+                #print(new_domain_user_serializer.errors)
 
-        print(new_user_serializer.errors)
+        #print(new_user_serializer.errors)
 
         return Response(new_user_serializer.data)
 
@@ -153,23 +155,25 @@ class UserViewSet(viewsets.ModelViewSet):
                 })
                 response.append(add_group_member(conn, user_and_group))
 
-        user_serializer = UserSerializer(user, data=request.data, partial=True)
+        user_serializer = UserWriteSerializer(user, data=request.data, partial=True)
         if user_serializer.is_valid():
             user_serializer.save()
-        print(user_serializer.errors)
+        # print("request",request.data)
+        # print("user serializer: ",user_serializer.data)
+        
 
         return Response(user_serializer.data)
 
-    @action(detail=True, methods=['delete'])
+    @action(detail=True, methods=['post'])
     def remove_from_group(self, request, pk=None):
         user = self.get_object()
+        print(request.data)
         domain_users = DomainUser.objects.filter(user_id=user.id)
         new_groups = Group.objects.filter(id__in=request.data['groups'])
-        domain_groups = DomainGroup.objects.filter(id__in=new_groups.values_list('domain_groups', flat=True))
+        domain_groups = DomainGroup.objects.filter(group_id__in=new_groups.values_list('id', flat=True))
         domains = Domain.objects.filter(id__in=domain_groups.values_list('domain', flat=True))
         response = []
         user_and_group = {}
-
         for domain in domains:
             conn = connect(domain.ipv4address, domain.acc_admin, domain.key_name)
             for domain_group in domain_groups.filter(domain__id=domain.id):
@@ -194,6 +198,7 @@ class UserViewSet(viewsets.ModelViewSet):
         organizational_unit = OrganizationalUnit.objects.filter(id__contains=request.data['organizational_unit'])
         domain_ous = DomainOrganizationalUnit.objects.filter(ou_id__in=organizational_unit.values_list('id', flat=True))
         domains = Domain.objects.filter(id__in=domain_users.values_list('domain', flat=True))
+        print(request.data)
 
         for domain in domains:
             conn = connect(domain.ipv4address, domain.acc_admin,domain.key_name)
@@ -210,7 +215,7 @@ class UserViewSet(viewsets.ModelViewSet):
                     domain_user_serializer.save()
                 print(domain_user_serializer.errors)
         
-        user_serializer = UserSerializer(user, data=request.data, partial=True)
+        user_serializer = UserWriteSerializer(user, data=request.data, partial=True)
         if user_serializer.is_valid():
             user_serializer.save()
         print(user_serializer.errors)
@@ -249,12 +254,12 @@ class UserViewSet(viewsets.ModelViewSet):
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissions]
     authentication_classes = [JWTAuthentication]
 
     def create(self, request):
         new_group = request.data
-        new_group_serializer = GroupSerializer(data=new_group)
+        new_group_serializer = GroupWriteSerializer(data=new_group)
         if new_group_serializer.is_valid():
             new_group_serializer.save()
             domains = Domain.objects.all()
@@ -334,7 +339,7 @@ class GroupViewSet(viewsets.ModelViewSet):
 class OrganizationalUnitViewSet(viewsets.ModelViewSet):
     queryset = OrganizationalUnit.objects.all()
     serializer_class = OrganizationalUnitSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissions]
     authentication_classes = [JWTAuthentication]
 
     def create(self, request):
@@ -386,19 +391,19 @@ class OrganizationalUnitViewSet(viewsets.ModelViewSet):
 class DomainUserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DomainUser.objects.all()
     serializer_class = DomainUserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissions]
     authentication_classes = [JWTAuthentication]
 
 class DomainGroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DomainGroup.objects.all()
     serializer_class = DomainGroupSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissions]
     authentication_classes = [JWTAuthentication]
 
 class DomainOrganizationalUnitViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DomainOrganizationalUnit.objects.all()
     serializer_class = DomainOrganizationalUnitSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissions]
     authentication_classes = [JWTAuthentication]
 
 class MyTokenObtainPairView(TokenObtainPairView):

@@ -36,11 +36,20 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = '__all__'
+        depth = 1
+
+class GroupWriteSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Group
+            fields = '__all__'
 
 class UserSerializer(serializers.ModelSerializer):
-    domains = DomainSerializer(many=True)
-    groups = GroupSerializer(many=True)
-    organizational_unit = OrganizationalUnitSerializer
+    class Meta:
+        model = User
+        fields = '__all__'
+        depth = 1
+
+class UserWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = '__all__'

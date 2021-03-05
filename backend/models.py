@@ -58,6 +58,7 @@ class Group(models.Model):
 class DomainOrganizationalUnit(models.Model):
     """Domain Organizational Unit"""
     id = models.CharField("ObjectGuid", max_length=50, primary_key=True)
+    
     ou_id = models.ForeignKey("OrganizationalUnit", on_delete=models.CASCADE, null=True)
     domain = models.ForeignKey('Domain', on_delete=models.CASCADE)
     name = models.CharField("Name", max_length=50)
@@ -80,7 +81,7 @@ class DomainUser(models.Model):
     """Model for domain user entities per single app user"""
     id = models.CharField("ObjectGUID", max_length=50, primary_key=True)
     user_id = models.ForeignKey('User', on_delete=models.CASCADE, null=True)
-    distinguished_name = models.CharField("Distinguished Name", max_length=50)
+    distinguished_name = models.CharField("Distinguished Name", max_length=100)
     user_principal_name = models.CharField(
         "User Principal Name", max_length=50, default=None)
     domain = models.ForeignKey(Domain, on_delete=models.CASCADE)

@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import environ 
 from pathlib import Path
 import os
+from datetime import timedelta
 
 env = environ.Env(
     DEBUG=(bool, False)
@@ -136,8 +137,12 @@ STATIC_URL = '/staticfiles/'
 STATICFILE_STORAGE = 'whitenoise.storage.CompressedManfestStaticFilesStorage'
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated'),
+    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.AllowAny'),
     'DEFAULT_AUTHETICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication')
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=120)
 }
 
 CORS_ORIGIN_ALLOW_ALL = True
