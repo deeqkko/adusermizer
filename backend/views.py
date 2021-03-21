@@ -4,19 +4,24 @@ Backend app api views
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.permissions import DjangoModelPermissions, AllowAny
+from rest_framework.permissions import DjangoModelPermissions
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from backend.models import Domain, User, DomainUser, DomainGroup, DomainOrganizationalUnit,\
-     Group, OrganizationalUnit
-from backend.serializers import DomainSerializer, UserSerializer, UserWriteSerializer, DomainUserSerializer,\
-     DomainGroupSerializer, DomainOrganizationalUnitSerializer, OrganizationalUnitSerializer,\
-     GroupSerializer, GroupWriteSerializer, MyTokenObtainPairSerializer
-from .services import connect, connect_domain, remove_domain, get_user, get_users, \
-     get_groups, create_group, move_group, delete_group, create_user, delete_user, \
-     get_organizational_units, create_organizational_unit, delete_organizational_unit, \
-     add_group_member, remove_group_member, move_object_to_ou
+from backend.models import (
+    Domain, User, DomainUser, DomainGroup, DomainOrganizationalUnit,
+    Group, OrganizationalUnit
+    )
+from backend.serializers import (
+    DomainSerializer, UserSerializer, UserWriteSerializer, DomainUserSerializer,
+    DomainGroupSerializer, DomainOrganizationalUnitSerializer, OrganizationalUnitSerializer,
+    GroupSerializer, GroupWriteSerializer, MyTokenObtainPairSerializer
+    )
+from .services import (
+    connect, connect_domain, remove_domain, get_users,
+    get_groups, create_group, delete_group, create_user, delete_user,
+    get_organizational_units, create_organizational_unit, delete_organizational_unit,
+    add_group_member, remove_group_member, move_object_to_ou
+    )
 
 ########################################################################################
 #                                                                                      #
@@ -26,6 +31,7 @@ from .services import connect, connect_domain, remove_domain, get_user, get_user
 
 
 class DomainViewSet(viewsets.ModelViewSet):
+    """App domain view"""
     queryset = Domain.objects.all()
     serializer_class = DomainSerializer
     permission_classes = [DjangoModelPermissions]
@@ -64,7 +70,6 @@ class DomainViewSet(viewsets.ModelViewSet):
             domain_user_serializer = DomainUserSerializer(data=domain_user)
             if domain_user_serializer.is_valid():
                 domain_user_serializer.save()
-        
 
         return Response(data)
 
@@ -84,12 +89,10 @@ class DomainViewSet(viewsets.ModelViewSet):
             if domain_group.created_by_app:
                 delete_group(conn, domain_group.id)
             domain_group.delete()
-        
         for domain_ou in domain_ous:
             if domain_ou.created_by_app:
                 delete_organizational_unit(conn, domain_ou.id)
             domain_ou.delete()
-        
         remove_domain(conn)
         domain.delete()
         return Response({'status':'Domain removed'})
@@ -102,6 +105,7 @@ class DomainViewSet(viewsets.ModelViewSet):
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    """App user view"""
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [DjangoModelPermissions]
@@ -129,9 +133,9 @@ class UserViewSet(viewsets.ModelViewSet):
                 new_domain_user_serializer = DomainUserSerializer(data=result)
                 if new_domain_user_serializer.is_valid():
                     new_domain_user_serializer.save()
-                #print(new_domain_user_serializer.errors)
+                print(new_domain_user_serializer.errors)
 
-        #print(new_user_serializer.errors)
+        print(new_user_serializer.errors)
 
         return Response(new_user_serializer.data)
 
@@ -222,11 +226,6 @@ class UserViewSet(viewsets.ModelViewSet):
 
         return Response(user_serializer.data)
 
-    @action(detail=True, methods=['get', 'post'])
-    def reset_key_name(self, request, pk=None):
-        self.get_object()
-        return Response('Coming soon...')
-
 
     def destroy(self, request, pk=None):
         user = self.get_object()
@@ -259,6 +258,7 @@ class GroupViewSet(viewsets.ModelViewSet):
 
     def create(self, request):
         new_group = request.data
+        #print(new_group)
         new_group_serializer = GroupWriteSerializer(data=new_group)
         if new_group_serializer.is_valid():
             new_group_serializer.save()
@@ -272,12 +272,12 @@ class GroupViewSet(viewsets.ModelViewSet):
                     'domain': domain.id,
                     'created_by_app': True
                 })
-                print(result)
+                #print(result)
                 domain_group_serializer = DomainGroupSerializer(data=result)
                 if domain_group_serializer.is_valid():
                     domain_group_serializer.save()
                 print(domain_group_serializer.errors)
-            
+            print(new_group_serializer.data)
         return Response(new_group_serializer.data)
 
  

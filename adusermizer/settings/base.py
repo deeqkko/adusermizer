@@ -9,10 +9,10 @@ https://docs.djangoproject.com/en/3.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
-import environ 
 from pathlib import Path
 import os
 from datetime import timedelta
+import environ
 
 env = environ.Env(
     DEBUG=(bool, False)
@@ -61,7 +61,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware'
-    
 ]
 
 ROOT_URLCONF = 'adusermizer.urls'
@@ -137,7 +136,7 @@ STATIC_URL = '/staticfiles/'
 STATICFILE_STORAGE = 'whitenoise.storage.CompressedManfestStaticFilesStorage'
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.AllowAny'),
+    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.DjangoModelPermissions'),
     'DEFAULT_AUTHETICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication')
 }
 

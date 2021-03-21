@@ -38,6 +38,7 @@ class DomainGroup(models.Model):
         return self.distinguished_name
 
 class Group(models.Model):
+    """App Group model"""
     id = models.UUIDField(
         "UserID",
         primary_key=True,
@@ -50,7 +51,9 @@ class Group(models.Model):
     group_scope = models.IntegerField("GroupScope")
     display_name = models.CharField("DisplayName", max_length=50, blank=True)
     description = models.CharField("Description", max_length=50, blank=True)
-    organizational_unit = models.ForeignKey('OrganizationalUnit', on_delete=models.CASCADE, blank=True, null=True)
+    organizational_unit = models.ForeignKey(
+        'OrganizationalUnit', on_delete=models.CASCADE, blank=True, null=True
+        )
 
     def __str__(self):
         return self.name
@@ -58,7 +61,7 @@ class Group(models.Model):
 class DomainOrganizationalUnit(models.Model):
     """Domain Organizational Unit"""
     id = models.CharField("ObjectGuid", max_length=50, primary_key=True)
-    
+
     ou_id = models.ForeignKey("OrganizationalUnit", on_delete=models.CASCADE, null=True)
     domain = models.ForeignKey('Domain', on_delete=models.CASCADE)
     name = models.CharField("Name", max_length=50)
@@ -69,6 +72,7 @@ class DomainOrganizationalUnit(models.Model):
         return self.distinguished_name
 
 class OrganizationalUnit(models.Model):
+    """App Organizational Unit model"""
     id = models.UUIDField(
         "UserID",
         primary_key=True,
@@ -104,7 +108,9 @@ class User(models.Model):
     given_name = models.CharField("GivenName", max_length=50)
     surname = models.CharField("Surname", max_length=50)
     account_password = models.CharField("Account Password", max_length=50)
-    organizational_unit = models.ForeignKey('OrganizationalUnit', null=True, on_delete=models.CASCADE)
+    organizational_unit = models.ForeignKey(
+        'OrganizationalUnit', null=True, on_delete=models.CASCADE
+        )
     groups = models.ManyToManyField(Group, blank=True)
     domains = models.ManyToManyField(Domain, blank=True)
 
